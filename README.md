@@ -57,10 +57,10 @@ Device Connected successfully
 Opening ADPD View
 Enter OpenView command with any of above choice as shown below..
 
-01 )ADPDCL Device
-02 )ADXL Device
-03 )ECG App
-04 )PPG View
+01 )ADPDCL Device \
+02 )ADXL Device \
+03 )ECG App \
+04 )PPG View 
 
 Response Status: Success
 Response Data:  b'\x9e\x00\x00'
@@ -79,28 +79,26 @@ Response Status: Success
 
 Available DCFG File
 
-01 )AD5940.dcfg
-02 )ADPD.dcfg
-03 )ADPD108.dcfg
-04 )ADPD1080Z-GST_EVAL_ANGLE_Nominal_01.dcfg
-05 )ADPD1080Z-GST_EVAL_GEST_Nominal_01.dcfg
-06 )ADPD1080Z-PRX_EVAL_PROX_LEDwaNominal_01.dcfg
-07 )ADPD1081Z-PPG_EVAL_Float_01.dcfg
-08 )ADPD1081Z-PPG_EVAL_Normal_01.dcfg
-09 )ADPD144RIZ-SF_EVAL_PPG_EarOrig_01.dcfg
-0A )ADPD188BIZ_EVAL_default_r120519.dcfg
-0B )ADPD188GGZ_EVAL_PPG_FloatMode.dcfg
-0C )ADPD188GGZ_TEST_PPGECG_AD8233_01.dcfg
-0D )ADPD2140Z_EVAL_ANGLE_02.dcfg
-0E )ADPD4000Z_EVAL_ECG_sAIN34_01.dcfg
-0F )ADPD4000_digital_int_IW.dcfg
-10 )ADPD4000_ECG_PPG.DCFG
-11 )ADPD4100_ECG_PPG_RevF.dcfg
-12 )ADPD4100_ECG_RevF.dcfg
-13 )ADPD4100_PPG_Default.dcfg
+01 )AD5940.dcfg \
+02 )ADPD.dcfg \
+03 )ADPD108.dcfg \
+04 )ADPD1080Z-GST_EVAL_ANGLE_Nominal_01.dcfg \
+05 )ADPD1080Z-GST_EVAL_GEST_Nominal_01.dcfg \
+06 )ADPD1080Z-PRX_EVAL_PROX_LEDwaNominal_01.dcfg\
+07 )ADPD1081Z-PPG_EVAL_Float_01.dcfg \
+08 )ADPD1081Z-PPG_EVAL_Normal_01.dcfg \
+09 )ADPD144RIZ-SF_EVAL_PPG_EarOrig_01.dcfg \
+0A )ADPD188BIZ_EVAL_default_r120519.dcfg \
+0B )ADPD188GGZ_EVAL_PPG_FloatMode.dcfg \
+0C )ADPD188GGZ_TEST_PPGECG_AD8233_01.dcfg \
+0D )ADPD2140Z_EVAL_ANGLE_02.dcfg \
+0E )ADPD4000Z_EVAL_ECG_sAIN34_01.dcfg \
+0F )ADPD4000_digital_int_IW.dcfg \
+10 )ADPD4000_ECG_PPG.DCFG \
+11 )ADPD4100_ECG_PPG_RevF.dcfg \
+12 )ADPD4100_ECG_RevF.dcfg \
+13 )ADPD4100_PPG_Default.dcfg \
 14 )ADXL.dcfg
-15 )sampl_smoke.dcfg
-16 )samp_cfg.dcfg
 
 Enter load config command with any of above choice as shown below..
 
@@ -136,7 +134,8 @@ UDP connection status :0
 UDP Port Number: 50007
 Version        : 1.0
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ \
+
 [210.0, 214.0, 207.0, 210.0, 209.0, 210.0, 214.0, 216.0, 205.0, 208.0, 212.0, ...] 
 ... 
 
