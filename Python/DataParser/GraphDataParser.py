@@ -48,53 +48,34 @@ from enum import Enum
 
 
 class CoolidgeDataBuffers:
-    def __init__(self):
-        self.SLOTA_DataArr = [[],[]]
-        self.SLOTB_DataArr = [[],[]]
-        self.SLOTC_DataArr = [[],[]]
-        self.SLOTD_DataArr = [[],[]]
-        self.SLOTE_DataArr = [[],[]]
-        self.SLOTF_DataArr = [[],[]]
-        self.SLOTG_DataArr = [[],[]]
-        self.SLOTH_DataArr = [[],[]]
-        self.SLOTI_DataArr = [[],[]]
-        self.SLOTJ_DataArr = [[],[]]
-        self.SLOTK_DataArr = [[],[]]
-        self.SLOTL_DataArr = [[],[]]
-        self.SLOTA_CntArr = []
-        self.SLOTB_CntArr = []
-        self.SLOTC_CntArr = []
-        self.SLOTD_CntArr = []
-        self.SLOTE_CntArr = []
-        self.SLOTF_CntArr = []
-        self.SLOTG_CntArr = []
-        self.SLOTH_CntArr = []
-        self.SLOTI_CntArr = []
-        self.SLOTJ_CntArr = []
-        self.SLOTK_CntArr = []
-        self.SLOTL_CntArr = []
-        self.slotA_samplecount = 0
-        self.slotB_samplecount = 0
-        self.slotC_samplecount = 0
-        self.slotD_samplecount = 0
-        self.slotE_samplecount = 0
-        self.slotF_samplecount = 0
-        self.slotG_samplecount = 0
-        self.slotH_samplecount = 0
-        self.slotI_samplecount = 0
-        self.slotJ_samplecount = 0
-        self.slotK_samplecount = 0
-        self.slotL_samplecount = 0
+    def __init__(self, framesz):
+        self.Slot_DataArr = [[[],[],[],[],[],[]],[[],[],[],[],[],[]],
+                             [[],[],[],[],[],[]],[[],[],[],[],[],[]],
+                             [[],[],[],[],[],[]],[[],[],[],[],[],[]],
+                             [[],[],[],[],[],[]],[[],[],[],[],[],[]],
+                             [[],[],[],[],[],[]],[[],[],[],[],[],[]],
+                             [[],[],[],[],[],[]],[[],[],[],[],[],[]]]
+        self.Slot_CntArr = [[],[],[],[],[],[],[],[],[],[],[],[]]
+        self.slot_samplecount = [0,0,0,0,0,0,0,0,0,0,0,0]
+        self.slot_frameSz = [framesz,framesz,framesz,framesz,framesz,framesz,framesz,framesz,framesz,framesz,framesz,framesz]
+        self.isBuffReady = [False, False, False, False, False, False, False, False, False, False, False, False]
+        
+    def CheckBufferReady(self):
+        self.isBuffReady = [False, False, False, False, False, False, False, False, False, False, False, False]
+        for idx in range(len(self.isBuffReady)):
+            if ((self.slot_samplecount[idx] % self.slot_frameSz[idx]) == 
+                            (self.slot_frameSz[idx] - 1)):
+                self.isBuffReady[idx] = True
 
 class GraphDataParser():
 
-    def __init__(self):
+    def __init__(self, nFrameSz=32):
         self.datazize = 0
         self.samplecount = 0
         self.status = "Success"
         self.seqdatastr = ""
         self.m2m2datastr = ""
-        self.frameSz = 34
+        self.frameSz = nFrameSz
 
         self.num = 0
         self.dataarr = []
@@ -104,6 +85,8 @@ class GraphDataParser():
         self.slotinfoarr = []
         self.channel_infoarr = []
         self.DSLinfoarr = []
+        self.interptStatus = []
+        self.isLeadOnInfo = []
 
         # ADPD/SMOKE
         self.slot_a = ""
@@ -121,10 +104,8 @@ class GraphDataParser():
         self.Z_DataArr = []
         self.PPG_DataArr = []
         self.SyncPPG_CntArr = []
-
         self.samplecntarr = []
-        self.adpd4000CH1_inst = CoolidgeDataBuffers()
-        self.adpd4000CH2_inst = CoolidgeDataBuffers()
+        self.adpd4000_inst = CoolidgeDataBuffers(self.frameSz)
 
         self.header_write = False
 
@@ -230,20 +211,27 @@ class GraphDataParser():
             seq_num = ReceivedPkts[3:5]
             ts = ReceivedPkts[5:9]
             slot_info = ReceivedPkts[9:21]
+            dataCount = 0
+            dataBitsToRead = 0
+            # print("Received Pkts : " + ReceivedPkts)
 
             length = int(len(slot_info))
             for x in range(length):
                 info = slot_info[x]
                 DSL_info = self.getBitValues(info, 0, 5)
+                for i in range(0,6):
+                    dataCount += self.getBitValues(info, i , i)
+                
                 channel_info = self.getBitValues(info, 6, 7)
                 self.slotinfoarr.append(info)
                 self.channel_infoarr.append(channel_info)
                 self.DSLinfoarr.append(DSL_info)
-
+            dataBitsToRead = ((dataCount * 8) + 24)
             view_info = ReceivedPkts[21]
             plot1_info = ReceivedPkts[22]
             plot2_info = ReceivedPkts[23]
 
+            intrpt_flag = self.getBitValues(view_info, 4, 7)
             self.num = struct.unpack('H', seq_num)[0]
 
             self.samplecount = self.samplecount + 1
@@ -269,7 +257,7 @@ class GraphDataParser():
             self.offsetarr.append(str(offset_a))
             self.offsetarr.append(str(offset_b))
 
-            data1 = ReceivedPkts[24:]  # skip prefix 24
+            data1 = ReceivedPkts[24:dataBitsToRead]  # skip prefix 24
             length = int(len(data1) / 8)
             increment = 8
             startbit = 24
@@ -288,186 +276,57 @@ class GraphDataParser():
             idx = 0
             ndatabuffindex = 0
             for x in range(length):
-                d1_data = 0
-                d2_data = 0
-                s1_data = 0
-                s2_data = 0
-                ch1_bit = self.channel_infoarr[idx] >> 0 & 1
-                ch2_bit = self.channel_infoarr[idx] >> 1 & 1
-                d1_bit = self.DSLinfoarr[idx] >> 0 & 1
-                d2_bit = self.DSLinfoarr[idx] >> 1 & 1
-                s1_bit = self.DSLinfoarr[idx] >> 2 & 1
-                s2_bit = self.DSLinfoarr[idx] >> 3 & 1
-                if d1_bit is 1:
-                    d1_data = self.dataarr[ndatabuffindex]
-                    ndatabuffindex += 1
-                if s1_bit is 1:
-                    s1_data = self.dataarr[ndatabuffindex]
-                    ndatabuffindex += 1
-                if d2_bit is 1:
-                    d2_data = self.dataarr[ndatabuffindex]
-                    ndatabuffindex += 1
-                if s2_bit is 1:
-                    s2_data = self.dataarr[ndatabuffindex]
-                    ndatabuffindex += 1
-
-                if idx is 0 and self.channel_infoarr[idx] != 0: #SLOTA
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotA_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTA_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTA_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTA_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotA_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotA_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTA_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTA_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTA_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotA_samplecount += 1
-                elif idx is 1 and self.channel_infoarr[idx] != 0:  #SLOTB
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotB_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTB_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTB_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTB_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotB_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotB_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTB_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTB_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTB_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotB_samplecount += 1
-                elif idx is 2 and self.channel_infoarr[idx] != 0:  #SLOTC
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotC_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTC_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTC_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTC_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotC_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotC_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTC_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTC_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTC_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotC_samplecount += 1
-                elif idx is 3 and self.channel_infoarr[idx] != 0:  #SLOTD
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotD_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTD_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTD_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTD_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotD_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotD_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTD_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTD_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTD_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotD_samplecount += 1
-                elif idx is 4 and self.channel_infoarr[idx] != 0:  #SLOTE
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotE_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTE_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTE_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTE_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotE_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotE_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTE_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTE_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTE_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotE_samplecount += 1
-                elif idx is 5 and self.channel_infoarr[idx] != 0:  #SLOTF
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotF_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTF_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTF_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTF_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotF_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotF_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTF_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTF_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTF_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotF_samplecount += 1
-                elif idx is 6 and self.channel_infoarr[idx] != 0:  #SLOTG
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotG_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTG_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTG_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTG_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotG_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotG_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTG_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTG_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTG_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotG_samplecount += 1
-                elif idx is 7 and self.channel_infoarr[idx] != 0:  #SLOTH
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotH_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTH_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTH_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTH_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotH_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotH_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTH_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTH_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTH_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotH_samplecount += 1
-                elif idx is 8 and self.channel_infoarr[idx] != 0:  #SLOTI
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotI_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTI_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTI_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTI_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotI_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotI_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTI_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTI_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTI_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotI_samplecount += 1
-                elif idx is 9 and self.channel_infoarr[idx] != 0:  #SLOTJ
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotJ_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTJ_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTJ_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTJ_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotJ_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotJ_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTJ_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTJ_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTJ_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotJ_samplecount += 1
-                elif idx is 10 and self.channel_infoarr[idx] != 0:  #SLOTK
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotK_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTK_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTK_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTK_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotK_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotK_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTK_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTK_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTK_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotK_samplecount += 1
-                elif idx is 11 and self.channel_infoarr[idx] != 0:  #SLOTL
-                    if ch1_bit is 1:
-                        if (self.adpd4000CH1_inst.slotL_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH1_inst.SLOTL_DataArr = [[],[]]
-                        self.adpd4000CH1_inst.SLOTL_DataArr[0].append(d1_data)
-                        self.adpd4000CH1_inst.SLOTL_DataArr[1].append(s1_data)
-                        self.adpd4000CH1_inst.slotL_samplecount += 1
-                    if ch2_bit is 1:
-                        if (self.adpd4000CH2_inst.slotL_samplecount % self.frameSz) == 0:
-                            self.adpd4000CH2_inst.SLOTL_DataArr = [[],[]]
-                        self.adpd4000CH2_inst.SLOTL_DataArr[0].append(d2_data)
-                        self.adpd4000CH2_inst.SLOTL_DataArr[1].append(s2_data)
-                        self.adpd4000CH2_inst.slotL_samplecount += 1
-                idx += 1
+                if((self.adpd4000_inst.slot_samplecount[idx] % self.adpd4000_inst.slot_frameSz[idx]) == 0):
+                    self.adpd4000_inst.Slot_DataArr[idx][0] = []
+                    self.adpd4000_inst.Slot_DataArr[idx][1] = []
+                    self.adpd4000_inst.Slot_DataArr[idx][2] = []
+                    self.adpd4000_inst.Slot_DataArr[idx][3] = []
+                    self.adpd4000_inst.Slot_DataArr[idx][4] = []
+                    self.adpd4000_inst.Slot_DataArr[idx][5] = []
+                    self.adpd4000_inst.Slot_CntArr[idx] = []
+                if(self.DSLinfoarr[idx] != 0):
+                    d1_data = 0
+                    d2_data = 0
+                    s1_data = 0
+                    s2_data = 0
+                    l1_data = 0
+                    l2_data = 0
+                    d1_bit = self.DSLinfoarr[idx] >> 0 & 1
+                    d2_bit = self.DSLinfoarr[idx] >> 1 & 1
+                    s1_bit = self.DSLinfoarr[idx] >> 2 & 1
+                    s2_bit = self.DSLinfoarr[idx] >> 3 & 1
+                    l1_bit = self.DSLinfoarr[idx] >> 4 & 1
+                    l2_bit = self.DSLinfoarr[idx] >> 5 & 1
+                    if d1_bit is 1:
+                        d1_data = self.dataarr[ndatabuffindex]                    
+                        ndatabuffindex += 1
+                    if s1_bit is 1:
+                        s1_data = self.dataarr[ndatabuffindex]
+                        ndatabuffindex += 1
+                    if l1_bit is 1:
+                        l1_data = self.dataarr[ndatabuffindex]
+                        ndatabuffindex += 1
+                    if d2_bit is 1:
+                        d2_data = self.dataarr[ndatabuffindex]
+                        ndatabuffindex += 1
+                    if s2_bit is 1:
+                        s2_data = self.dataarr[ndatabuffindex]
+                        ndatabuffindex += 1
+                    if l2_bit is 1:
+                        l2_data = self.dataarr[ndatabuffindex]
+                        ndatabuffindex += 1
+                    
+                    #print(d1_data, s1_data, d2_data, s2_data)
+                    self.adpd4000_inst.Slot_DataArr[idx][0].append(d1_data)
+                    self.adpd4000_inst.Slot_DataArr[idx][1].append(s1_data)
+                    self.adpd4000_inst.Slot_DataArr[idx][2].append(l1_data)
+                    self.adpd4000_inst.Slot_DataArr[idx][3].append(d2_data)
+                    self.adpd4000_inst.Slot_DataArr[idx][4].append(s2_data)
+                    self.adpd4000_inst.Slot_DataArr[idx][5].append(l2_data)
+                    self.adpd4000_inst.slot_samplecount[idx] += 1
+                    self.adpd4000_inst.Slot_CntArr[idx].append(self.adpd4000_inst.slot_samplecount[idx])
+                    #print (self.adpd4000_inst.Slot_DataArr[idx])
+                    idx += 1
 
             if not self.header_write:
                 self.write_ADPDCL_header(view_info)
@@ -476,6 +335,30 @@ class GraphDataParser():
             str_data = ""
             for x in range(length):
                 str_data += str(self.dataarr[x]) + "\t"
+
+            str_intdata = ""
+            if intrpt_flag :
+                intBitsToRead = (dataBitsToRead + 56)
+                data1 = ReceivedPkts[dataBitsToRead : intBitsToRead] 
+                length = int(len(data1) / 8)
+                if len(data1) % 7 != 0:
+                    print("InterruptByte: Not in a correct length")
+
+                for x in range(length):
+                    intdata = ReceivedPkts[dataBitsToRead:(dataBitsToRead + increment)]
+                    intdata = struct.unpack('d',intdata)[0]
+                    self.interptStatus.append(intdata)
+                    dataBitsToRead += increment      
+
+                length = len(self.interptStatus)
+
+                for x in range(length):
+                    str_intdata += str(self.interptStatus[x]) + "\t"
+
+                str_intdata += str(ReceivedPkts[intBitsToRead])
+                self.isLeadOnInfo.append(ReceivedPkts[intBitsToRead])
+                print("Intstatus data = " + str_intdata)
+                self.interptStatus.clear()
 
             self.seqdatastr += str_data + str(timestamp) + "\t" + str(self.num) + "\n"
 
@@ -525,6 +408,7 @@ class GraphDataParser():
           
 
         return self.seqdatastr
+    
 
     def getBitValues(self,value, startBit, endBit):
         '''
@@ -650,15 +534,16 @@ class GraphDataParser():
             str_header += "Plot 2 Unit : " + str(self.unitarr[1]) + "\t"
             str_header += "Plot 2 Offset : " + str(self.offsetarr[1]) + "\n"
 
-        length = len(self.slotinfoarr)
-        for x in range(length):
-            if self.slotinfoarr[x] != 0:
-                if self.channel_infoarr[x] == 1:
-                    str_header += ADPDCL_Slot(x).name + " CH1 " + "\t"
-                elif self.channel_infoarr[x] == 2:
-                    str_header += ADPDCL_Slot(x).name + " CH1 " + "\t" +  ADPDCL_Slot(x).name + " CH2 " + "\t"
+        # length = len(self.slotinfoarr)
+        # for x in range(length):
+        #     if self.slotinfoarr[x] != 0:
+        #         if self.channel_infoarr[x] == 1:
+        #             str_header += ADPDCL_Slot(x).name + " CH1 " + "\t"
+        #         elif self.channel_infoarr[x] == 3:
+        #             str_header += ADPDCL_Slot(x).name + " CH1 " + "\t" +  ADPDCL_Slot(x).name + " CH2 " + "\t"
 
-        self.seqdatastr = str_header + "Time Stamp" + "\t" + "Sequence Number\n"
+        #self.seqdatastr = str_header + "Time Stamp" + "\t" + "Sequence Number\n"
+        self.seqdatastr = str_header
         self.header_write = True
 
     def get_time(self, timestamp):
