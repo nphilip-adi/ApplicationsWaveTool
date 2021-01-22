@@ -27,7 +27,7 @@
 #define AWT_SOCKET_ERROR			(-2)
 #define AWT_TRANSFER_SUCCESS		(0)
 
-#define AWT_TIMEOUT_SEC				(1)
+#define AWT_TIMEOUT_SEC				(5)
 
 typedef unsigned char       uint8;
 
@@ -51,14 +51,18 @@ typedef struct awt_adpd_intstatus_pkt {
 	double dtimestamp;
 	double nSeqId;
 	double nIntFla[5];
+	double nLeadsStat;
 } awt_adpd_intstatus_pkt;
 
 typedef enum {
 	ADPD_GRAPH_STREAM = 0xA0,
-	ADPD4000_GRAPH_STREAM = 0xB0,
-	ADXL_GRAPH_STREAM = 0xC0,
-	PPG_GRAPH_STREAM = 0xD0,
-	ECG_GRAPH_STREAM = 0xE0
+	ADPD4000_GRAPH_STREAM = 0xA1,
+	ADXL_GRAPH_STREAM = 0xB0,
+	PPG_GRAPH_STREAM = 0xC0,
+	SPO2_GRAPH_STREAM = 0xC0,
+	ECG_GRAPH_STREAM = 0xC2,
+	EDA_GRAPH_STREAM = 0xC3,
+	TEMP_GRAPH_STREAM = 0xC4
 } ADPD_GRAPH_STREAMINFO;
 
 typedef enum {
@@ -71,7 +75,7 @@ typedef enum {
 __declspec(dllexport) int awt_opensocket(int port, int nMaxFrameSz);
 __declspec(dllexport) int awt_transfermodule(int nInstId, int *pSlotSampCnt, double *pAdpdGraphData, int *pTimestampData, int* pSlotFrmCnt);
 __declspec(dllexport) void awt_closesocket(int nInstId);
-__declspec(dllexport) void awt_getadpdslotinfo(int nInstId, awt_pkt_header* pPktHdr, awt_adpd_pkt* pAdpdSlotInfo);
+__declspec(dllexport) int awt_getadpdslotinfo(int nInstId, awt_pkt_header* pPktHdr, awt_adpd_pkt* pAdpdSlotInfo);
 __declspec(dllexport) int awt_getinterruptStatus(int nInstId, double *pIntTimestamp, double *pSeqID, double *pIntData);
 
 
