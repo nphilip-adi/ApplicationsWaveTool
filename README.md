@@ -2,7 +2,7 @@
 
 ## Python Modules
 
-Requirement: Applications WaveTool 3.5.0.
+Requirement: Applications WaveTool 3.5.10.
 Python: 3.7.1+
 
 ### Running MATLAB Example. 
